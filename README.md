@@ -10,4 +10,4 @@ Ansible role to install Percona server for MySQL.
 * python2-PyMySQL-0.9.3-1.el7.noarch
 
 # Note:
-File permission for configuration directory should be default one 644 and 751 for directory. Any modification to file and folder permission may result in error.
+File permission for configuration file should be default one 644 and 751 for data directory. Any modification to file and folder permission may result in error.
