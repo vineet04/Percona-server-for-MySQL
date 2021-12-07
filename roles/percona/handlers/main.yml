@@ -1,0 +1,6 @@
+---
+- name: restart MySQL
+  systemd:
+    name: "mysql"
+    state: restarted
+    enabled: yes

@@ -1,0 +1,125 @@
+---
+- name: remove mariadb-libs
+  shell: rpm -e -nodeps mariadb-libs
+  args: 
+    warn: false
+  ignore_errors: yes
+
+- name: install percona for MySQL
+  shell: rpm -ivh "{{ pkg_tmp_dir }}/*.rpm"  
+  args: 
+    warn: false
+
+- name: create MySQL data dir
+  file:
+    state: directory
+    path: "{{ percona_data_dir }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: 0751
+
+- name: set the selinux file context
+  sefcontext:
+    target: "{{ percona_data_dir }}"
+    setype: mysqld_db_t 
+    state: present
+
+- name: run restore context to reload selinux
+  shell: restorecon -R -v {{percona_data_dir}}
+
+- name: configure MySQL data directory
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^datadir'
+    line: 'datadir="{{ percona_data_dir }}"' 
+
+- name:   start mysql
+  systemd:
+      name: mysql
+      state: started
+      enabled: yes
+
+- name: obtain Default root password
+  shell: grep -i 'temporary password' /var/log/mysqld.log | tail -1 | awk '{print $11}'\
+         >/tmp/secret
+  register: password
+
+- name: update mysql root password
+  shell: |
+     password="{{ mysql_root_password }}"
+     mysql -u root -p`cat /tmp/secret` --connect-expired-password -e "SET PASSWORD = PASSWORD('$password');"
+
+- name: remove /tmp/secret file
+  file: 
+    state: absent
+    path: /tmp/secret
+
+- name: remove temporary_password line from logs
+  lineinfile:
+     path: /var/log/mysqld.log
+     regexp: "temporary password"
+     state: absent
+     
+- name: open tcp/3306 through firewall
+  firewalld:
+    port:  3306/tcp
+    permanent: true
+    state: enabled
+    immediate: yes
+
+- name: install Audit Plugin for Advance auditing
+  shell: 
+      mysql -u root -p"{{ mysql_root_password }}" -e "INSTALL PLUGIN audit_log SONAME 'audit_log.so';" 
+  
+- name: configure percona audit log policy settings
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^audit_log_policy'
+    line: 'audit_log_policy={{audit_log_policy}}'
+  notify: restart MySQL
+
+- name: configure percona audit log format settings
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^audit_log_format'
+    line: 'audit_log_format={{audit_log_format}}'
+  notify: restart MySQL
+
+- name: configure percona audit log file settings
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^audit_log_file'
+    line: 'audit_log_file={{audit_log_file}}'
+  notify: restart MySQL
+
+- name: configure percona audit log rotate size settings
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^audit_log_rotate_on_size'
+    line: 'audit_log_rotate_on_size={{audit_log_rotate_on_size}}'
+  notify: restart MySQL
+
+- name: configure percona audit log rotate rotations settings
+  lineinfile:
+    dest: "{{percona_conf_dir}}/mysqld.cnf"
+    regexp: '^audit_log_rotations' 
+    line: 'audit_log_rotations={{audit_log_rotations}}'
+  notify: restart MySQL
+
+- name: create audit log dir
+  file:
+    state: directory
+    path: "{{ audit_log_dir }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: 0751
+
+- name: set the selinux file context
+  sefcontext:
+    target: "{{ audit_log_dir }}"
+    setype: mysqld_db_t 
+    state: present
+
+- name: run restore context to reload selinux
+  shell: restorecon -R -v {{audit_log_dir}}
+  notify: restart MySQL

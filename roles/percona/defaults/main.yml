@@ -1,0 +1,29 @@
+# User that will run MySQL and own the MySQL directories
+service_user: mysql
+service_group: mysql
+
+# Directory where the Percona data and configuration will live
+percona_data_dir: /some-dir
+
+# Directory for MySQL configuration
+percona_conf_dir: /etc/percona-server.conf.d
+
+# Temporary directory where installation files for package
+pkg_tmp_dir: /tmp
+
+# MySQL user
+mysql_user: root
+
+# Updated root password
+mysql_root_password: some-random-password
+
+# Directory for audit log
+audit_log_dir: /var/log/mysql
+
+# Percona Audit plugin logs settings
+
+audit_log_policy: ALL
+audit_log_format: NEW
+audit_log_file: /var/log/mysql/audit.log
+audit_log_rotate_on_size: 1024M
+audit_log_rotations: 10
